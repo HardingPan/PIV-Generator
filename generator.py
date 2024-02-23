@@ -60,4 +60,3 @@ class Generator():
         image = image*255.0
         image  = np.round(image)
         return image
-
