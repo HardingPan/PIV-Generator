@@ -29,23 +29,27 @@ def set_seed(seed):
     return True
 
 def cfg_init(cfg, args):
+    value_name = ""
     cfg.flow = args.type
     if args.value:
         if args.type == "uniform_flow":
             assert len(args.value) > 1
             cfg.uniform_flow['c_x'] = float(''.join(args.value[0]))
             cfg.uniform_flow['c_y'] = float(''.join(args.value[0]))
+            value_name = f"c_x-{cfg.uniform_flow['c_x']}-c_y-{cfg.uniform_flow['c_x']}"
         elif args.type == "sine_flow":
             assert len(args.value) > 2
             cfg.sine_flow['a'] = int(''.join(args.value[0]))
             cfg.sine_flow['px'] = int(''.join(args.value[1]))
             cfg.sine_flow['vmax'] = float(''.join(args.value[2]))
+            value_name = f"a-{cfg.sine_flow['a']}-px-{cfg.sine_flow['px']}-vmax-{cfg.sine_flow['vmax']}"
         elif args.type == "lamboseen_flow":
             cfg.lamboseen_flow['gamma'] = float(''.join(args.value[0]))
+            value_name = f"gamma-{cfg.lamboseen_flow['gamma']}"
         elif args.type == "cellular_flow":
             cfg.cellular_flow['vmax'] = float(''.join(args.value[0]))
-    
-    return cfg
+            value_name = f"vmax-{cfg.cfg.cellular_flow['vmax']}"
+    return cfg, value_name
 
 class DateSaver:
     def __init__(self, args) -> None:
@@ -63,8 +67,9 @@ class SaveNpy(DateSaver):
     def __init__(self, args) -> None:
         super().__init__(args)
     def save(self, img1, img2, u, v):
+        global value_name
         res = np.concatenate((img1, img2, u, v), 0)
-        save_name = os.path.join(self.args.path, f"{self.args.type}-{self.index}.npy")
+        save_name = os.path.join(self.args.path, f"{self.args.type}-{value_name}-{self.index}.npy")
         np.save(save_name, res)
         self.index = self.index + 1
         
@@ -73,9 +78,10 @@ class SaveTif(DateSaver):
         super().__init__(args)
         self.index = int(self.index / 2)
     def save(self, img1, img2, u, v):
-        save_name_1 = os.path.join(self.args.path, f"{self.args.type}-{self.index}-1.tif")
-        save_name_2 = os.path.join(self.args.path, f"{self.args.type}-{self.index}-2.tif")
-        save_name_flo = os.path.join(self.args.path, f"{self.args.type}-{self.index}.flo")
+        global value_name
+        save_name_1 = os.path.join(self.args.path, f"{self.args.type}-{value_name}-{self.index}-1.tif")
+        save_name_2 = os.path.join(self.args.path, f"{self.args.type}-{value_name}-{self.index}-2.tif")
+        save_name_flo = os.path.join(self.args.path, f"{self.args.type}-{value_name}-{self.index}.flo")
         tifffile.imsave(save_name_1, img1.astype(np.uint8))
         tifffile.imsave(save_name_2, img2.astype(np.uint8))
         stacked_tensor = np.stack([u, v], axis=-1)
@@ -87,9 +93,10 @@ class SavePng(DateSaver):
         super().__init__(args)
         self.index = int(self.index / 2)
     def save(self, img1, img2, u, v):
-        save_name_1 = os.path.join(self.args.path, f"{self.args.type}-{self.index}-1.png")
-        save_name_2 = os.path.join(self.args.path, f"{self.args.type}-{self.index}-2.png")
-        save_name_flo = os.path.join(self.args.path, f"{self.args.type}-{self.index}.flo")
+        global value_name
+        save_name_1 = os.path.join(self.args.path, f"{self.args.type}-{value_name}-{self.index}-1.png")
+        save_name_2 = os.path.join(self.args.path, f"{self.args.type}-{value_name}-{self.index}-2.png")
+        save_name_flo = os.path.join(self.args.path, f"{self.args.type}-{value_name}-{self.index}.flo")
         Image.fromarray(img1.astype(np.uint8)).save(save_name_1)
         Image.fromarray(img2.astype(np.uint8)).save(save_name_2)
         stacked_tensor = np.stack([u, v], axis=-1)
@@ -125,7 +132,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     set_seed(args.seed)
-    cfg = cfg_init(config(), args)
+    cfg, value_name = cfg_init(config(), args)
+    print(f"value {value_name}")
     if args.output == "npy":
         data_saver = SaveNpy(args)
     elif args.output == "tif":
